@@ -12,20 +12,22 @@ load_dotenv()  # This line brings all environment variables from .env into os.en
 
 # Initialize the recognizer
 recognizer = sr.Recognizer()
-
+recognizer.energy_threshold = 4000
+recognizer.dynamic_energy_adjustment_damping = 0.15
 # Initialize Generative AI client
 genAI = genai.configure(api_key=os.environ["GENAI_KEY"])
-geminiAI = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-1.5-flash')
+chat = model.start_chat(history=[])
 
 # Function to recognize speech
 def recognize_speech():
     with sr.Microphone() as source:
         print("Listening...")
-        recognizer.adjust_for_ambient_noise(source, duration=1)
+        recognizer.adjust_for_ambient_noise(source, duration=1)# listen for 1 second to calibrate the energy threshold for ambient noise levels
         audio = recognizer.listen(source)
         try:
             text = recognizer.recognize_google(audio)
-            print(f"You said: {text}")
+            print(f"\nYou said: {text}")
             return text
         except sr.UnknownValueError:
             print("Google Speech Recognition could not understand audio")
@@ -36,13 +38,17 @@ def recognize_speech():
 
 # Function to generate AI response
 def generate_response(prompt):
-    response = geminiAI.generate_content(prompt)
-    print(f"Generated response: {response.text}")
-    return response.text
+    try:
+
+        response = chat.send_message(prompt)
+        clean_text = response.text.replace('*','')
+        print(f"\nBot: {clean_text}")
+        return clean_text
+    except:
+        print('Something wrong!')
 
 # Function to synthesize speech and play it directly from memory
 def text_to_speech(text):
-
     client = texttospeech.TextToSpeechClient()
 
     input_text = texttospeech.SynthesisInput(text=text)
